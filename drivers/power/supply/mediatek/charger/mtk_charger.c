@@ -124,11 +124,9 @@ void hqsys_pcba_set_thermal_current_limit(void)
 
 	pcba_to_thermal = get_huaqin_pcba_config();
 
-	if (pcba_to_thermal == PCBA_L19_P0_1_IN || pcba_to_thermal == PCBA_L19P_P0_1_IN
-			|| pcba_to_thermal == PCBA_L19_P1_IN || pcba_to_thermal == PCBA_L19P_P1_IN
-				|| pcba_to_thermal == PCBA_L19_P1_1_IN || pcba_to_thermal == PCBA_L19P_P1_1_IN
-					|| pcba_to_thermal == PCBA_L19_P2_IN || pcba_to_thermal == PCBA_L19P_P2_IN
-						|| pcba_to_thermal == PCBA_L19_MP_IN || pcba_to_thermal == PCBA_L19P_MP_IN) {
+	if (pcba_to_thermal == PCBA_K19P_P1_INDIA || pcba_to_thermal == PCBA_K19P_P1_1_INDIA
+		|| pcba_to_thermal == PCBA_K19P_P2_INDIA || pcba_to_thermal == PCBA_K19P_MP_INDIA
+		|| pcba_to_thermal == PCBA_K19_P2_INDIA || pcba_to_thermal == PCBA_K19_MP_INDIA) {
 		is_india = true;
 	} else {
 		is_india = false;
