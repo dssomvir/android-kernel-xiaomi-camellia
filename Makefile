@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 VERSION = 4
 PATCHLEVEL = 19
-SUBLEVEL = 191
+SUBLEVEL = 325
 EXTRAVERSION =
 NAME = "People's Front"
 
@@ -774,10 +774,10 @@ KBUILD_CFLAGS   += $(call cc-option, -gsplit-dwarf, -g)
 else
 KBUILD_CFLAGS	+= -g
 endif
-ifeq ($(LLVM_IAS),0)
-KBUILD_AFLAGS	+= -Wa,-gdwarf-2
-else
+ifeq ($(LLVM_IAS),1)
 KBUILD_AFLAGS	+= -g
+else
+KBUILD_AFLAGS	+= -Wa,-gdwarf-2
 endif
 endif
 

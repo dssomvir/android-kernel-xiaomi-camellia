@@ -244,6 +244,9 @@ quiet_cmd_gzip = GZIP    $@
 cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 	(rm -f $@ ; false)
 
+quiet_cmd_cat = CAT     $@
+cmd_cat = cat $(filter-out FORCE,$^) > $@
+
 # DTC
 # ---------------------------------------------------------------------------
 DTC ?= $(objtree)/scripts/dtc/dtc
