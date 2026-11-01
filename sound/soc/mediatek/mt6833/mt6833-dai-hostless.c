@@ -154,8 +154,30 @@ static int mtk_dai_hostless_startup(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int mtk_dai_hostless_prepare(struct snd_pcm_substream *substream,
+				    struct snd_soc_dai *dai)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	/*
+	 * The legacy speech HAL uses a 32-bit UINT_MAX stop threshold to
+	 * request free-running hostless playback. On a 64-bit kernel this
+	 * is smaller than the ALSA boundary, so an empty buffer is rejected
+	 * with -EPIPE before the hardware path can start. No application
+	 * samples are queued for these modem-controlled paths.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    (dai->id == MT6833_DAI_HOSTLESS_SPEECH ||
+	     dai->id == MT6833_DAI_HOSTLESS_SRC_1) &&
+	    runtime->stop_threshold == (snd_pcm_uframes_t)U32_MAX)
+		runtime->stop_threshold = runtime->boundary;
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops mtk_dai_hostless_ops = {
 	.startup = mtk_dai_hostless_startup,
+	.prepare = mtk_dai_hostless_prepare,
 };
 
 /* dai driver */

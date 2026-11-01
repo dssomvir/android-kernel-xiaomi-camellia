@@ -17,45 +17,30 @@
 
 #include "bus.h"
 
-static int name_match(struct device *dev, const void *name)
-{
-	return !strcmp((const char *)name, dev_name(dev));
-}
-
-static bool dev_name_ends_with(struct device *dev, const char *suffix)
-{
-	const char *name = dev_name(dev);
-	const int name_len = strlen(name);
-	const int suffix_len = strlen(suffix);
-
-	if (suffix_len > name_len)
-		return false;
-
-	return strcmp(name + (name_len - suffix_len), suffix) == 0;
-}
-
-static int switch_fwnode_match(struct device *dev, const void *fwnode)
-{
-	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-switch");
-}
+static DEFINE_MUTEX(switch_lock);
+static DEFINE_MUTEX(mux_lock);
+static LIST_HEAD(switch_list);
+static LIST_HEAD(mux_list);
 
 static void *typec_switch_match(struct device_connection *con, int ep,
 				void *data)
 {
-	struct device *dev;
+	struct typec_switch *sw;
 
 	if (con->fwnode) {
 		if (con->id && !fwnode_property_present(con->fwnode, con->id))
 			return NULL;
 
-		dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
-					switch_fwnode_match);
+		list_for_each_entry(sw, &switch_list, entry)
+			if (dev_fwnode(&sw->dev) == con->fwnode)
+				return sw;
+		return con->id ? ERR_PTR(-EPROBE_DEFER) : NULL;
 	} else {
-		dev = class_find_device(&typec_mux_class, NULL,
-					con->endpoint[ep], name_match);
+		list_for_each_entry(sw, &switch_list, entry)
+			if (!strcmp(con->endpoint[ep], dev_name(&sw->dev)))
+				return sw;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
-
-	return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
 }
 
 /**
@@ -71,10 +56,14 @@ struct typec_switch *typec_switch_get(struct device *dev)
 {
 	struct typec_switch *sw;
 
+	mutex_lock(&switch_lock);
 	sw = device_connection_find_match(dev, "orientation-switch", NULL,
 					  typec_switch_match);
-	if (!IS_ERR_OR_NULL(sw))
+	if (!IS_ERR_OR_NULL(sw)) {
 		WARN_ON(!try_module_get(sw->dev.parent->driver->owner));
+		get_device(&sw->dev);
+	}
+	mutex_unlock(&switch_lock);
 
 	return sw;
 }
@@ -146,6 +135,10 @@ typec_switch_register(struct device *parent,
 		return ERR_PTR(ret);
 	}
 
+	mutex_lock(&switch_lock);
+	list_add_tail(&sw->entry, &switch_list);
+	mutex_unlock(&switch_lock);
+
 	return sw;
 }
 EXPORT_SYMBOL_GPL(typec_switch_register);
@@ -158,8 +151,12 @@ EXPORT_SYMBOL_GPL(typec_switch_register);
  */
 void typec_switch_unregister(struct typec_switch *sw)
 {
-	if (!IS_ERR_OR_NULL(sw))
+	if (!IS_ERR_OR_NULL(sw)) {
+		mutex_lock(&switch_lock);
+		list_del(&sw->entry);
+		mutex_unlock(&switch_lock);
 		device_unregister(&sw->dev);
+	}
 }
 EXPORT_SYMBOL_GPL(typec_switch_unregister);
 
@@ -177,25 +174,20 @@ EXPORT_SYMBOL_GPL(typec_switch_get_drvdata);
 
 /* ------------------------------------------------------------------------- */
 
-static int mux_fwnode_match(struct device *dev, const void *fwnode)
-{
-	return dev_fwnode(dev) == fwnode && dev_name_ends_with(dev, "-mux");
-}
-
 static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 {
 	const struct typec_altmode_desc *desc = data;
-	struct device *dev;
+	struct typec_mux *mux;
 	bool match;
 	int nval;
 	u16 *val;
 	int i;
 
 	if (!con->fwnode) {
-		dev = class_find_device(&typec_mux_class, NULL,
-					con->endpoint[ep], name_match);
-
-		return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
+		list_for_each_entry(mux, &mux_list, entry)
+			if (!strcmp(con->endpoint[ep], dev_name(&mux->dev)))
+				return mux;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	/*
@@ -240,10 +232,11 @@ static void *typec_mux_match(struct device_connection *con, int ep, void *data)
 	return NULL;
 
 find_mux:
-	dev = class_find_device(&typec_mux_class, NULL, con->fwnode,
-				mux_fwnode_match);
+	list_for_each_entry(mux, &mux_list, entry)
+		if (dev_fwnode(&mux->dev) == con->fwnode)
+			return mux;
 
-	return dev ? to_typec_switch(dev) : ERR_PTR(-EPROBE_DEFER);
+	return match ? ERR_PTR(-EPROBE_DEFER) : NULL;
 }
 
 /**
@@ -261,10 +254,14 @@ struct typec_mux *typec_mux_get(struct device *dev,
 {
 	struct typec_mux *mux;
 
+	mutex_lock(&mux_lock);
 	mux = device_connection_find_match(dev, "mode-switch", (void *)desc,
 					   typec_mux_match);
-	if (!IS_ERR_OR_NULL(mux))
+	if (!IS_ERR_OR_NULL(mux)) {
 		WARN_ON(!try_module_get(mux->dev.parent->driver->owner));
+		get_device(&mux->dev);
+	}
+	mutex_unlock(&mux_lock);
 
 	return mux;
 }
@@ -335,6 +332,10 @@ typec_mux_register(struct device *parent, const struct typec_mux_desc *desc)
 		return ERR_PTR(ret);
 	}
 
+	mutex_lock(&mux_lock);
+	list_add_tail(&mux->entry, &mux_list);
+	mutex_unlock(&mux_lock);
+
 	return mux;
 }
 EXPORT_SYMBOL_GPL(typec_mux_register);
@@ -347,8 +348,12 @@ EXPORT_SYMBOL_GPL(typec_mux_register);
  */
 void typec_mux_unregister(struct typec_mux *mux)
 {
-	if (!IS_ERR_OR_NULL(mux))
+	if (!IS_ERR_OR_NULL(mux)) {
+		mutex_lock(&mux_lock);
+		list_del(&mux->entry);
+		mutex_unlock(&mux_lock);
 		device_unregister(&mux->dev);
+	}
 }
 EXPORT_SYMBOL_GPL(typec_mux_unregister);
 

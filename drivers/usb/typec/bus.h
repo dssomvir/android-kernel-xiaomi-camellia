@@ -3,6 +3,7 @@
 #ifndef __USB_TYPEC_ALTMODE_H__
 #define __USB_TYPEC_ALTMODE_H__
 
+#include <linux/list.h>
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_mux.h>
 
@@ -39,11 +40,13 @@ extern struct class typec_mux_class;
 
 struct typec_switch {
 	struct device dev;
+	struct list_head entry;
 	typec_switch_set_fn_t set;
 };
 
 struct typec_mux {
 	struct device dev;
+	struct list_head entry;
 	typec_mux_set_fn_t set;
 };
 
