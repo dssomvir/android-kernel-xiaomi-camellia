@@ -21,10 +21,8 @@ static u16 kpd_keymap_state[KPD_NUM_MEMS] = {
 	0xffff, 0xffff, 0xffff, 0xffff, 0x00ff
 };
 
-unsigned int get_boot_mode(void)
-{
-	return 0;
-}
+
+extern unsigned int get_boot_mode(void);
 
 
 static void enable_kpd(int enable)

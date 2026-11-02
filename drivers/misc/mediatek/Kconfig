@@ -218,6 +218,8 @@ source "drivers/misc/mediatek/apusys/Kconfig"
 source "drivers/misc/mediatek/base/power/Kconfig"
 source "drivers/misc/mediatek/pmic/Kconfig"
 source "drivers/misc/mediatek/pmic_wrap/Kconfig"
+source "drivers/misc/mediatek/boot/Kconfig"
+source "drivers/misc/mediatek/boot_reason/Kconfig"
 
 endmenu # Power
 
