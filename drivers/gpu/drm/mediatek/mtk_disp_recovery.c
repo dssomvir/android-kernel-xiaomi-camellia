@@ -314,9 +314,11 @@ static int _mtk_esd_check_eint(struct drm_crtc *crtc)
 	struct mtk_drm_crtc *mtk_crtc = to_mtk_crtc(crtc);
 	struct mtk_drm_esd_ctx *esd_ctx = mtk_crtc->esd_ctx;
 	int ret = 0;
+#ifdef CONFIG_MI_ESD_SUPPORT
 /*L19 code for HQ-170229 by caogaojie at 2021/11/26 start*/
 	int count = 0;
 /*L19 code for HQ-170229 by caogaojie at 2021/11/26 end*/
+#endif
 	DDPINFO("[ESD]ESD check eint\n");
 
 	if (unlikely(!esd_ctx)) {
